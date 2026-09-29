@@ -63,7 +63,45 @@ def build_chain() -> Any:
     ``deepseek-v4-flash-vision-exp``. The API key is loaded from .env.
     """
     ### YOUR CODE HERE
-    return None
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_deepseek import ChatDeepSeek
+    from langchain_core.output_parsers import JsonOutputParser
+
+    llm = ChatDeepSeek(
+        model="deepseek-v4-flash-vision-exp",
+        temperature=0.0,
+    )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("human", [
+            {
+                "type": "text",
+                "text": """You are a professional supermarket receipt parser for FinTech calculation.
+Parse the receipt image and extract EXACTLY THREE float values in HKD.
+Return ONLY pure JSON, no explanation, no markdown, no extra characters.
+
+Required keys:
+1. final_payment: final paid amount AFTER rounding adjustment on the receipt
+2. subtotal: receipt SUBTOTAL value BEFORE rounding
+3. total_discount: SUM OF ALL discounts, promotions, coupons, membership offers on this receipt
+
+STRICT RULES:
+1. All discount lines (negative amounts on receipt) must be summed and converted to POSITIVE total_discount.
+2. ROUNDING adjustment amount (tiny +/- rounding fix) IS NOT DISCOUNT, DO NOT ADD IT.
+3. If multiple discount items exist, sum ALL of them, do NOT miss any.
+4. If any value is missing, fill 0.0.
+
+Correct example output:
+{{"final_payment":102.30, "subtotal":102.31, "total_discount":5.39}}
+"""
+            },
+            {"type": "image_url", "image_url": {"url": "{img_url}"}}
+        ])
+    ])
+
+    parser = JsonOutputParser()
+    chain = prompt | llm | parser
+    return chain
 
 
 def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
@@ -79,8 +117,34 @@ def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
     to process independent receipt-extraction prompts in parallel.
     """
     ### YOUR CODE HERE
-    _ = (chain, images)
-    return {QUERY_1: DUMMY_RESPONSE, QUERY_2: DUMMY_RESPONSE}
+    sum_final = Decimal("0.00")
+    sum_original = Decimal("0.00")
+
+    batch_inputs = []
+    for img_path in images:
+        img_url = image_data_url(img_path)
+        batch_inputs.append({"img_url": img_url})
+
+    results = chain.batch(batch_inputs)
+
+    for res in results:
+        try:
+            fp = Decimal(str(res.get("final_payment", 0.0))).quantize(Decimal("0.01"))
+            sub = Decimal(str(res.get("subtotal", 0.0))).quantize(Decimal("0.01"))
+            disc = Decimal(str(res.get("total_discount", 0.0))).quantize(Decimal("0.01"))
+            disc = abs(disc)
+
+            sum_final += fp
+            sum_original += (sub + disc)
+        except Exception:
+            fp = Decimal("0.00")
+            sub = Decimal("0.00")
+            disc = Decimal("0.00")
+
+    return {
+        QUERY_1: f"HK${sum_final:.2f}",
+        QUERY_2: f"HK${sum_original:.2f}"
+    }
 
 
 # Everything below is provided runner/scoring code. No edits are needed.
@@ -180,7 +244,7 @@ def main() -> int:
         raise TypeError("answer_queries() must return a dictionary")
 
     output = write_results(responses, read_ground_truth(args.image_folder))
-    print(f"Processed {len(images)} receipt(s). Wrote {output}.")
+    print(f"\nProcessed {len(images)} receipt(s). Wrote {output}.")
     return 0
 
 
