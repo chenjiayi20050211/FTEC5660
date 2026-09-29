@@ -79,6 +79,7 @@ flowchart LR
     E --> F[Batch parallel inference for all receipts]
     F --> G[For each receipt: compute with Decimal<br/>final_payment, subtotal, total_discount]
     G --> H[Aggregate sum<br/>Q1: sum final_payment<br/>Q2: sum(subtotal+discount)]
-    H --> I[Return HK$xx.xx response]
+    H --> I[Return HK xx.xx response]
     I --> J[Write results.csv]
+
 
