@@ -78,8 +78,6 @@ flowchart LR
     D --> E[JsonOutputParser]
     E --> F[Batch parallel inference for all receipts]
     F --> G[For each receipt: compute with Decimal<br/>final_payment, subtotal, total_discount]
-    G --> H[Aggregate sum<br/>Q1: sum final_payment<br/>Q2: sum(subtotal&#43;discount)]
+    G --> H[Aggregate sum<br/>Q1: sum all final_payment<br/>Q2: sum subtotal and total_discount]
     H --> I[Return HK xx.xx response]
     I --> J[Write results.csv]
-
-
