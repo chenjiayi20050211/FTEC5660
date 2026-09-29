@@ -71,13 +71,15 @@ The final responses are formatted as `HK$XX.XX`. Each returned string contains e
 
 ### Chain Visualization
 ```mermaid
-flowchart LR
+flowchart TD
     A[Input: receipt images folder] --> B[Encode images via image_data_url]
     B --> C[ChatPromptTemplate<br/>Instruction: extract 3 fields JSON]
-    C --> D[DeepSeek VLM deepseek-v4-flash-vision-exp]
+    C --> D[DeepSeek VLM<br/>deepseek-v4-flash-vision-exp]
     D --> E[JsonOutputParser]
     E --> F[Batch parallel inference for all receipts]
     F --> G[For each receipt: compute with Decimal<br/>final_payment, subtotal, total_discount]
-    G --> H[Aggregate sum<br/>Q1: sum all final_payment<br/>Q2: sum subtotal and total_discount]
-    H --> I[Return HK xx.xx response]
+    G --> H[Aggregate sum]
+    H -->|Q1: sum all final_payment| I1[Result Q1]
+    H -->|Q2: sum subtotal and total_discount| I2[Result Q2]
+    I1 & I2 --> I[Return HK xx.xx response]
     I --> J[Write results.csv]
